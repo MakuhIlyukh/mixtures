@@ -1,23 +1,52 @@
 # %%
+from os.path import join as joinp
+import json
+
 import numpy as np
+import matplotlib.pyplot as plt
+import mlflow
 
 from src.datasets import GaussianMixtureSampler, scatter, save_dataset
-import matplotlib.pyplot as plt
+from config import DATASETS_ARTIFACTS_PATH as DAP
 
 
 K = 5
 D = 2
 N = 2000
-SEED = 21
+SEED = 20
 
 
 if __name__ == '__main__':
-    rnd = np.random.RandomState(SEED)
-    gms = GaussianMixtureSampler(K, D, rnd)
-    X, y = gms.sample(N)
-    scatter(X, y)
-    plt.show()
-    with open('data/Xy.pkl', 'wb') as f:
-        save_dataset(X, y, f)
-    with open('data/gms.pkl', 'wb') as f:
-        gms.save(f)
+    with mlflow.start_run() as data_gen_run:
+        # log params
+        mlflow.log_params({
+            "K": K,
+            "D": D,
+            "N": N,
+            "SEED": SEED})
+        # adding tags
+        mlflow.set_tag("datasets", "generation")
+        
+        # dataset generation
+        rnd = np.random.RandomState(SEED)
+        gms = GaussianMixtureSampler(K, D, rnd)
+        X, y = gms.sample(N)
+        fig, axis = plt.subplots()
+        scatter(X, y, axis=axis)
+        plt.show()
+
+        # saving data and log
+        # dataset
+        with open(joinp(DAP, 'Xy.pkl'), 'wb') as f:
+            save_dataset(X, y, f)
+        # sampler
+        with open(joinp(DAP, 'gms.pkl'), 'wb') as f:
+            gms.save(f)
+        # run_id
+        run_id = data_gen_run.info.run_id
+        with open(joinp(DAP, 'run_id.json'), 'w') as f:
+            json.dump(run_id, f)
+        # figure
+        fig.savefig(joinp(DAP, "figure.png"))
+        # log data
+        mlflow.log_artifact(DAP)

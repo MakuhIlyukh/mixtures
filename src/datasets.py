@@ -120,4 +120,4 @@ def load_dataset(file_like):
 def scatter(X, y=None, axis=None):
     if axis is None:
         axis = plt
-    axis.scatter(X[:, 0], X[:, 1], c=y)
+    return axis.scatter(X[:, 0], X[:, 1], c=y)

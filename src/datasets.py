@@ -77,9 +77,12 @@ class GaussianMixtureSampler:
         s = np.zeros((x.shape[0], 1), dtype=np.float64)
         for k in range(self._k):
             x_cent = (x - self._m[k])
-            s += self._p[k] * self._MULT_CONST * np.linalg.det(self._l[k]) \
-                * np.exp(-np.sum((x_cent * (x_cent @ self._l[k])),
-                                 axis=1, keepdims=True) / 2)
+            s += (self._p[k]
+                  * self._MULT_CONST
+                  * np.sqrt(np.linalg.det(self._l[k])) \
+                  * np.exp(-np.sum((x_cent * (x_cent @ self._l[k])),
+                                   axis=1, keepdims=True)
+                           / 2))
         return s
 
     @property

@@ -2,7 +2,7 @@ DATASETS_ARTIFACTS_PATH = "data/datasets"
 
 # tags for mlflow
 # keys
-DATASETS_TAG_KEY = "dataset"
+DATASETS_TAG_KEY = "datasets"
 MODELS_TAG_KEY = "models"
 
 # values

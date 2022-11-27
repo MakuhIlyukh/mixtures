@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import mlflow
 
 from src.datasets import GaussianMixtureSampler, scatter, save_dataset
+from src.utils import set_commit_tag
 from config import (
     DATASETS_ARTIFACTS_PATH as DAP,
     DATASETS_TAG_KEY,
@@ -29,6 +30,7 @@ if __name__ == '__main__':
             "SEED": SEED})
         # adding tags
         mlflow.set_tag(DATASETS_TAG_KEY, GENERATION_TAG_VALUE)
+        set_commit_tag()
         
         # dataset generation
         rnd = np.random.RandomState(SEED)

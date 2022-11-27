@@ -118,9 +118,3 @@ def save_dataset(X, y, file_like):
 def load_dataset(file_like):
     """ Loads (X, y) from file. """
     return pickle.load(file_like)
-
-
-def scatter(X, y=None, axis=None):
-    if axis is None:
-        axis = plt
-    return axis.scatter(X[:, 0], X[:, 1], c=y)

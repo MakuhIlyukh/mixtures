@@ -6,7 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mlflow
 
-from src.datasets import GaussianMixtureSampler, scatter, save_dataset
+from src.datasets import GaussianMixtureSampler, save_dataset
+from src.plotting import scatter
 from src.utils import set_commit_tag
 from config import (
     DATASETS_ARTIFACTS_PATH as DAP,

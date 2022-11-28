@@ -12,22 +12,26 @@ from src.datasets import (
     load_dataset, GaussianMixtureSampler)
 from src.plotting import (
     scatter, gm_plot)
+from src.utils import (
+    set_commit_tag, del_folder_content)
 from src.models import GM
 from src.losses import nll
 from config import (
-    DATASETS_ARTIFACTS_PATH as DAP,
-    TRAINED_MODELS_PATH as TRMP,
-    TRAIN_PLOTS_PATH as TPP)
+    DATASETS_ARTIFACTS_PATH,
+    TRAINED_MODELS_PATH,
+    TRAIN_PLOTS_PATH,
+    MODELS_TAG_KEY,
+    TRAINING_TAG_VALUE)
 
 
 TRAIN_SEED = 106
-LR = 10**(-5)
+LR = 10**(-2)
 MIN_MAX_SCALING = False
-N_EPOCHS = 8*10**3
+N_EPOCHS = 100
 WEIGHT_DECAY = 0.0
-OPTIMIZER = "SGD"
+OPTIMIZER = "Adam"
 LOSS_PREFIX = "NLL"
-PLOT_EVERY = 100
+PLOT_EVERY = 1
 
 
 def train(X, gm, n_epochs, optimizer, loss_fn,
@@ -55,15 +59,18 @@ def train(X, gm, n_epochs, optimizer, loss_fn,
                 gm.m_w.detach().numpy(),
                 gm.s_w(no_grad=True).numpy(),
                 axis=ax)
-            fig.savefig(joinp(TPP, f"gm_plot_{epoch}.png"))
+            fig.savefig(joinp(TRAIN_PLOTS_PATH, f"gm_plot_{epoch}.png"))
             plt.close(fig)  # ???: может лучше очищать фигуру и создавать не в цикле?
         
         mlflow.log_metric(loss_name, loss.item(), step=epoch)
 
 
 if __name__ == '__main__':
-    # mlflow starting, params logging
+    # starting mlflow
     train_run = mlflow.start_run()
+    
+    # mlflow logging
+    # params
     mlflow.log_params({
         "TRAIN_SEED": TRAIN_SEED,
         "LR": LR,
@@ -72,14 +79,21 @@ if __name__ == '__main__':
         "WEIGHT_DECAY": WEIGHT_DECAY,
         "OPTIMIZER": OPTIMIZER,
         "LOSS": LOSS_PREFIX})
+    # commit
+    set_commit_tag()
+    # tag
+    mlflow.set_tag(MODELS_TAG_KEY, TRAINING_TAG_VALUE)
+
+    # clearing folders
+    del_folder_content(TRAIN_PLOTS_PATH)
 
     # setting seed of torch
     torch.manual_seed(TRAIN_SEED)
 
     # loading dataset
-    with open(joinp(DAP, "gms.pkl"), 'rb') as f:
+    with open(joinp(DATASETS_ARTIFACTS_PATH, "gms.pkl"), 'rb') as f:
         gm_sampler = GaussianMixtureSampler.load(f)
-    with open(joinp(DAP, "Xy.pkl"), 'rb') as f:
+    with open(joinp(DATASETS_ARTIFACTS_PATH, "Xy.pkl"), 'rb') as f:
         X, y = load_dataset(f)
     k = gm_sampler.k
     d = gm_sampler.d
@@ -88,7 +102,7 @@ if __name__ == '__main__':
     gm = GM(k, d)
 
     # choosing an optimizer
-    optimizer = torch.optim.SGD(
+    optimizer = torch.optim.Adam(
         params=gm.parameters(),
         lr=LR,
         weight_decay=WEIGHT_DECAY)
@@ -114,5 +128,5 @@ if __name__ == '__main__':
     #       запусков. А может должна очищаться не только папка plots?
     #       А может вообще нужно, чтобы файлы не сохранялись в папки,
     #       а сразу заносились в mlflow runs?
-    mlflow.log_artifact(TPP)
+    mlflow.log_artifact(TRAIN_PLOTS_PATH)
     # mlflow.pytorch.log_model(gm, TRMP)

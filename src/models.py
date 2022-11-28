@@ -71,8 +71,9 @@ class GM(torch.nn.Module):
                 ))
         return s
 
-    def s_w(self, detach=True):
-        if detach:
-            return torch.linalg.inv(self.l_w.detach())
+    def s_w(self, no_grad=True):
+        if no_grad:
+            with torch.no_grad():
+                return torch.linalg.inv(self.l_w)
         else:
-            return torch.linalg.inv(self.l_w) 
+            return torch.linalg.inv(self.l_w)

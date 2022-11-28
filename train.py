@@ -29,7 +29,6 @@ LR = 10**(-2)
 MIN_MAX_SCALING = False
 N_EPOCHS = 100
 WEIGHT_DECAY = 0.0
-OPTIMIZER = "Adam"
 LOSS_PREFIX = "NLL"
 PLOT_EVERY = 1
 
@@ -77,7 +76,6 @@ if __name__ == '__main__':
         "MIN_MAX_SCALING": MIN_MAX_SCALING,
         "N_EPOCHS": N_EPOCHS,
         "WEIGHT_DECAY": WEIGHT_DECAY,
-        "OPTIMIZER": OPTIMIZER,
         "LOSS": LOSS_PREFIX})
     # commit
     set_commit_tag()
@@ -106,6 +104,7 @@ if __name__ == '__main__':
         params=gm.parameters(),
         lr=LR,
         weight_decay=WEIGHT_DECAY)
+    mlflow.log_param("OPTIMIZER", optimizer.__class__)
     
     # preprocessing steps
     if MIN_MAX_SCALING:

@@ -1,4 +1,4 @@
-# Реализация Multivariate Gaussian Mixture Model на PyTorch + geotorch
+# Multivariate Gaussian Mixture Model using PyTorch + geotorch
 ![Смесь](cover.png)
 
 Этот пакет позволяет:

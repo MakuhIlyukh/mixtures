@@ -35,8 +35,6 @@ class GM(torch.nn.Module):
         self.l_w = torch.nn.Parameter(
             torch.empty((k, d, d), requires_grad=True, dtype=torch.float64))
         positive_semidefinite(self, "l_w")
-        with torch.no_grad():
-            self.l_w.data = torch.randn((k, d, d))
         
         # mix probs
         self.p_w = torch.nn.Parameter(

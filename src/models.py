@@ -52,21 +52,22 @@ class GM(torch.nn.Module):
 
     def forward(self, x):
         s = torch.zeros((x.shape[0], 1), dtype=torch.float64)
+        with parametrize.cached():
         # TODO: можно ли не пробегаться по всем k?
-        for k in range(self.k):
-            x_cent = (x - self.m_w[k])
-            # TODO: можно избавиться от суммирования, если изменить порядок операций?
-            s += (
-                self.p_w[k]
-                * self._mult_const
-                * torch.sqrt(torch.det(self.l_w[k]))
-                * torch.exp(
-                    - torch.sum(
-                        x_cent * (x_cent @ self.l_w[k]),
-                        dim=1,
-                        keepdim=True)
-                    / 2
-                ))
+            for k in range(self.k):
+                x_cent = (x - self.m_w[k])
+                # TODO: можно избавиться от суммирования, если изменить порядок операций?
+                s += (
+                    self.p_w[k]
+                    * self._mult_const
+                    * torch.sqrt(torch.det(self.l_w[k]))
+                    * torch.exp(
+                        - torch.sum(
+                            x_cent * (x_cent @ self.l_w[k]),
+                            dim=1,
+                            keepdim=True)
+                        / 2
+                    ))
         return s
 
     def s_w(self, no_grad=True):

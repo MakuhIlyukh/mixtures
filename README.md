@@ -1,5 +1,5 @@
 # Multivariate Gaussian Mixture Model using PyTorch + geotorch
-![Смесь](cover.png)
+![Смесь](cover.gif)
 
 Этот пакет позволяет:
 - создавать смеси многомерных нормальных распределений;

@@ -7,6 +7,7 @@ from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler
 import mlflow
 import matplotlib.pyplot as plt
+import numpy as np
 
 from src.datasets import (
     load_dataset, GaussianMixtureSampler)
@@ -16,6 +17,7 @@ from src.utils import (
     set_commit_tag, del_folder_content)
 from src.models import GM
 from src.losses import nll
+from src.initializers import KMeansInitializer
 from config import (
     DATASETS_ARTIFACTS_PATH,
     TRAINED_MODELS_PATH,
@@ -24,13 +26,13 @@ from config import (
     TRAINING_TAG_VALUE)
 
 
-TRAIN_SEED = 106
-LR = 10**(-2)
+TRAIN_SEED = 107
+LR = 10**(-1)
 MIN_MAX_SCALING = False
-N_EPOCHS = 100
+N_EPOCHS = 500
 WEIGHT_DECAY = 0.0
 LOSS_PREFIX = "NLL"
-PLOT_EVERY = 1
+PLOT_EVERY = 100
 
 
 def train(X, gm, n_epochs, optimizer, loss_fn,
@@ -40,6 +42,7 @@ def train(X, gm, n_epochs, optimizer, loss_fn,
     X_numpy = X
     X = torch.from_numpy(X)
     # TODO: add batch splitting
+    # TODO: add stop on plateu
     tqdm_bar = tqdm(range(n_epochs))
     for epoch in tqdm_bar:
         optimizer.zero_grad()
@@ -85,10 +88,12 @@ if __name__ == '__main__':
     # clearing folders
     del_folder_content(TRAIN_PLOTS_PATH)
 
-    # setting seed of torch
+    # setting seed of torch and numpy
     torch.manual_seed(TRAIN_SEED)
+    rnd = np.random.RandomState(TRAIN_SEED)
 
     # loading dataset
+    # TODO: add dataset-generation-run logging
     with open(joinp(DATASETS_ARTIFACTS_PATH, "gms.pkl"), 'rb') as f:
         gm_sampler = GaussianMixtureSampler.load(f)
     with open(joinp(DATASETS_ARTIFACTS_PATH, "Xy.pkl"), 'rb') as f:
@@ -97,9 +102,13 @@ if __name__ == '__main__':
     d = gm_sampler.d
 
     # creating a model
-    gm = GM(k, d)
+    gm = GM(
+        k, d,
+        m_init=KMeansInitializer(k, X, rnd),
+        p_init="1/k")
 
     # choosing an optimizer
+    # TODO: add lr sheduler
     optimizer = torch.optim.Adam(
         params=gm.parameters(),
         lr=LR,

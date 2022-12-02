@@ -306,3 +306,237 @@ scatter(scaler.transform(gm_sampler.m))
 # %%
 gm_sampler.m[i]
 gm_sampler.s[i]
+
+
+# %%
+from os.path import join as joinp
+
+from src.datasets import (
+    GaussianMixtureSampler, load_dataset)
+from config import DATASETS_ARTIFACTS_PATH as DAP
+from src.plotting import gm_plot
+
+
+with open(joinp(DAP, "gms.pkl"), 'rb') as f:
+    gm_sampler = GaussianMixtureSampler.load(f)
+with open(joinp(DAP, "Xy.pkl"), 'rb') as f:
+    X, y = load_dataset(f)
+k = gm_sampler.k
+d = gm_sampler.d
+
+
+# %%
+from src.plotting import (
+    gm_plot, scatter)
+
+
+scatter(X, y)
+gm_plot(
+    gm_sampler.m,
+    gm_sampler.s)
+
+
+# %%
+import torch.nn.utils.parametrize as parametrize
+import torch
+
+class SimpleParametrization(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def forward(self, X):
+        return X*2
+    
+    def right_inverse(self, X):
+        return X/2
+
+
+class SimpleModule(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.w = torch.nn.Parameter(torch.tensor([3.0, 5.0], requires_grad=True))
+        parametrize.register_parametrization(
+            self, "w", SimpleParametrization())
+        self.b = torch.nn.Parameter(torch.tensor(7.0, requires_grad=True))
+    
+    def forward(self, X):
+        s = torch.tensor(0.0)
+        with parametrize.cached():
+            for i in range(2):
+                s += (self.w[i]
+                        *self.w[i]
+                        *self.w[i]
+                        + 7*self.w[i]
+                        + 1/self.w[i])
+        return s
+
+
+module = SimpleModule()
+y = module(torch.tensor(1.0))
+y.backward()
+module.parametrizations.w.original.grad
+
+
+# %%
+y = module.b*17
+y.backward()
+module.b.grad, t.grad
+
+
+# %%
+x = torch.tensor(5.0, requires_grad=True)
+module.parametrizations.w.original.data = 7*x
+y = 3*module.w
+y.backward()
+module.parametrizations.w.original.grad
+
+# %%
+# with torch.no_grad():
+module.w = module.w * 13
+module.w, module.parametrizations.w.original
+
+# %%
+with torch.no_grad():
+    module.b.data = torch.tensor(7.0)
+module.b
+
+
+# %%
+from typing import Iterable
+
+import torch
+from torch import nn
+from torch.nn.utils import parametrize
+from geotorch import positive_semidefinite
+from tqdm import tqdm
+from torchviz import make_dot
+
+from src.initializers import DirichletInitializer, init_factory
+from src.datasets import load_dataset
+from config import DATASETS_ARTIFACTS_PATH
+from src.losses import nll
+
+
+class SoftmaxParametrization(torch.nn.Module):
+    def __init__(self, c=0):
+        super().__init__()
+        self.c = c
+
+    def forward(self, X):
+        return nn.functional.softmax(X, dim=-1)
+    
+    def right_inverse(self, Y):
+        return torch.log(Y) + self.c
+
+
+class GM(torch.nn.Module):
+    def __init__(self,
+                 k, d, c=0):
+        super().__init__()
+
+        # means
+        self.m_w = torch.nn.Parameter(
+            torch.randn((k, d), requires_grad=True, dtype=torch.float64))
+        
+        # inversed covs
+        self.l_w = torch.nn.Parameter(
+            torch.empty((k, d, d), requires_grad=True, dtype=torch.float64))
+        positive_semidefinite(self, "l_w")
+        
+        # mix probs
+        self.p_w = torch.nn.Parameter(
+            torch.empty(k, dtype=torch.float64, requires_grad=True))
+        parametrize.register_parametrization(
+            self, 'p_w', SoftmaxParametrization(c))
+        self.p_w = torch.distributions.Dirichlet(
+                concentration=torch.full((k,), 1.0, dtype=torch.float64)
+            ).sample()
+        
+        # constants
+        self._mult_const = (torch.pi * 2)**(-d / 2)
+        self.k = k
+        self.d = d
+
+    def forward(self, x):
+        with parametrize.cached():
+            s = torch.zeros((x.shape[0], 1), dtype=torch.float64)
+            # l_w = self.l_w
+            # print(l_w)
+            # TODO: можно ли не пробегаться по всем k?
+            for k in range(self.k):
+                x_cent = (x - self.m_w[k])
+                # TODO: можно избавиться от суммирования, если изменить порядок операций?
+                s += (
+                    self.p_w[k]
+                    * self._mult_const
+                    * torch.sqrt(torch.det(self.l_w[k]))
+                    * torch.exp(
+                        - torch.sum(
+                            x_cent * (x_cent @ self.l_w[k]),
+                            dim=1,
+                            keepdim=True)
+                        / 2
+                    ))
+        return s
+
+    def s_w(self, no_grad=True):
+        if no_grad:
+            with torch.no_grad():
+                return torch.linalg.inv(self.l_w)
+        else:
+            return torch.linalg.inv(self.l_w)
+
+
+# torch.manual_seed(123)
+# gm = GM(5, 2)
+with open(DATASETS_ARTIFACTS_PATH + "/Xy.pkl", "rb") as f:
+    X, y = load_dataset(f)
+# pdfs = gm(torch.from_numpy(X))
+# loss = nll(pdfs)
+# # loss.backward()
+
+# make_dot(loss, params=dict(gm.named_parameters()))
+# # gm.parametrizations.l_w.original.grad
+
+
+# %%
+import torch
+from torch.nn.utils import parametrize
+
+
+torch.manual_seed(131)
+
+
+class SimpleModule(torch.nn.Module):
+    def __init__(self, k, c=0):
+        super().__init__()
+        
+        self.p_w = torch.nn.Parameter(
+            torch.empty(k, dtype=torch.float64, requires_grad=True))
+        parametrize.register_parametrization(
+            self, 'p_w', SoftmaxParametrization(c))
+        p_w = torch.distributions.Dirichlet(
+                concentration=torch.full((k,), 1.0, dtype=torch.float64)
+            ).sample()
+        self.p_w = p_w
+        t = torch.full((k,), 1.0)
+        with torch.no_grad():
+            self.parametrizations.p_w.original.copy_(t)
+        print(self.parametrizations.p_w.original)
+        t.fill_(5.2)
+        print(self.parametrizations.p_w.original)
+        self.k = k
+    
+    def forward(self, X):
+        with parametrize.cached():
+            s = torch.tensor(0.0, dtype=torch.float64)
+            for i in range(self.k):
+                s += self.p_w[i]
+        return s
+
+
+sm = SimpleModule(5)
+y = sm(X)
+# make_dot(y, dict(sm.named_parameters()))
+# %%

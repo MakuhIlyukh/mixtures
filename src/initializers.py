@@ -1,12 +1,13 @@
 from typing import Iterable
 
 import torch
+from sklearn.cluster import KMeans
 
 
 def tensor_init_factory(rval_tensor):
-    def assign(lval_tensor):
-        lval_tensor.data = rval_tensor.detach().clone()
-    return assign
+    def tensor_func():
+        return rval_tensor
+    return tensor_func
 
 
 def init_factory(init, named_inits, name):
@@ -15,7 +16,7 @@ def init_factory(init, named_inits, name):
     Example of usage:
     class my_module(torch.nn.Module):
         def __init__(self, w_init="default_key"):
-            w = torch.torch.Tensor(1.0, dtype=torch.float64)
+            w = torch.Tensor(1.0, dtype=torch.float64)
             w_init_callable = init_factory(
                 w_init,
                 {
@@ -23,7 +24,7 @@ def init_factory(init, named_inits, name):
                     "uniform": torch.nn.init.uniform_
                 },
                 "w_init")
-            w_init_callable(w)
+            w.copy_(w_init_callable())
 
     """
     if isinstance(init, str):
@@ -59,6 +60,17 @@ class DirichletInitializer:
         self.distr = torch.distributions.Dirichlet(self.concentration)
 
     def __call__(self, tensor):
-        tensor.data = self.distr.sample()
+        return self.distr.sample()
 
 
+class KMeansInitializer:
+    def __init__(self, k, X, numpy_random_state, n_init=1):
+        km = KMeans(
+            n_clusters=k,
+            random_state=numpy_random_state,
+            n_init=n_init)
+        km.fit(X)
+        self.centers = km.cluster_centers_.copy()
+    
+    def __call__(self):
+        return torch.tensor(self.centers, dtype=torch.float64)

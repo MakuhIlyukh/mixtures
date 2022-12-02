@@ -64,8 +64,11 @@ class DirichletInitializer:
 
 
 class KMeansInitializer:
-    def __init__(self, k, X, n_init=1):
-        km = KMeans(n_clusters=k, n_init=n_init)
+    def __init__(self, k, X, numpy_random_state, n_init=1):
+        km = KMeans(
+            n_clusters=k,
+            random_state=numpy_random_state,
+            n_init=n_init)
         km.fit(X)
         self.centers = km.cluster_centers_.copy()
     
